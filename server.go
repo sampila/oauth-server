@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"strconv"
 	"net/http"
 	"time"
 
@@ -11,7 +12,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/oauth2.v3/errors"
 	"gopkg.in/oauth2.v3/manage"
+	"gopkg.in/oauth2.v3/models"
 	"gopkg.in/oauth2.v3/server"
+	"github.com/sampila/oauth-server/repository/rest"
+)
+
+var (
+	restUsersRepo rest.RestUsersRepository
 )
 
 func main() {
@@ -23,12 +30,13 @@ func main() {
 	manager := manage.NewDefaultManager()
 
 	clientStore, _ := mysql.NewClientStore(db)
-	//clientStore := store.NewClientStore()
-	//clientStore.Set("000000", &models.Client{
-	//	ID:     "000000",
-	//	Secret: "999999",
-	//	Domain: "http://localhost",
-	//})
+	//clientStore = store.NewClientStore()
+	clientStore.Create(&models.Client{
+		ID:     "111111",
+		Secret: "supersecret",
+		Domain: "http://localhost:8084",
+		UserID: "12",
+	})
 	tokenStore, _ := mysql.NewTokenStore(db)
 	manager.MapClientStorage(clientStore)
 	manager.MapTokenStorage(tokenStore)
@@ -38,8 +46,11 @@ func main() {
 	srv.SetClientInfoHandler(server.ClientFormHandler)
 	//auth password granty type handler
 	srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
-		if username == "test" && password == "test" {
-			userID = "test"
+		//To-Do check to api login
+		// Authenticate the user against the Users API:
+		user, reqErr := restUsersRepo.LoginUser(username, password)
+		if reqErr == nil {
+			userID = strconv.Itoa(int(user.Id))
 		}
 		return
 	})
