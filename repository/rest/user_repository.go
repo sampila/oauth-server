@@ -7,18 +7,17 @@ import (
 	"time"
 	"encoding/json"
 	"errors"
-	"log"
 )
 
 var (
 	usersRestClient = rest.RequestBuilder{
 		BaseURL: "http://localhost:8084",
-		Timeout: 100 * time.Millisecond,
+		Timeout: 3000 * time.Millisecond,
 	}
 )
 
 type RestUsersRepository interface {
-	LoginUser(string, string) (*user.User, rest_errors.RestErr)
+	LoginUser(string, string) (map[string]interface{}, rest_errors.RestErr)
 }
 
 type usersRepository struct{}
@@ -27,11 +26,9 @@ func NewRestUsersRepository() RestUsersRepository {
 	return &usersRepository{}
 }
 
-func (r *usersRepository) LoginUser(email string, password string) (*user.User, rest_errors.RestErr) {
-	log.Println(email)
-	log.Println(password)
+func (r *usersRepository) LoginUser(username string, password string) (map[string]interface{}, rest_errors.RestErr) {
 	request := user.UserLoginRequest{
-		Email:    email,
+		Username: username,
 		Password: password,
 	}
 
@@ -49,9 +46,9 @@ func (r *usersRepository) LoginUser(email string, password string) (*user.User, 
 		return nil, apiErr
 	}
 
-	var usr user.User
-	if err := json.Unmarshal(response.Bytes(), &usr); err != nil {
+	var respondJson map[string]interface{}
+	if err := json.Unmarshal(response.Bytes(), &respondJson); err != nil {
 		return nil, rest_errors.NewInternalServerError("error when trying to unmarshal users login response", errors.New("json parsing error"))
 	}
-	return &usr, nil
+	return respondJson, nil
 }

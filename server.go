@@ -17,8 +17,12 @@ import (
 	"github.com/sampila/oauth-server/repository/rest"
 )
 
-var (
+type service struct {
 	restUsersRepo rest.RestUsersRepository
+}
+
+var (
+	userRepo = rest.NewRestUsersRepository()
 )
 
 func main() {
@@ -48,9 +52,13 @@ func main() {
 	srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
 		//To-Do check to api login
 		// Authenticate the user against the Users API:
-		user, reqErr := restUsersRepo.LoginUser(username, password)
-		if reqErr == nil {
-			userID = strconv.Itoa(int(user.Id))
+		s := &service{
+			restUsersRepo : userRepo,
+		}
+		respond, restErr := s.restUsersRepo.LoginUser(username, password)
+		if restErr == nil {
+			resData := respond["data"].(map[string]interface{})
+			userID = strconv.Itoa(int(resData["ID"].(float64)))
 		}
 		return
 	})
