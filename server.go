@@ -41,6 +41,11 @@ func main() {
 		Domain: "http://localhost:8084",
 		UserID: "12",
 	})
+	clientStore.Create(&models.Client{
+		ID:     "3sdGzJ7rKkyZjPU15SWEqEK5Uwho9NDp",
+		Secret: "9UFhraag61zgv01AJtVeDaxivoGLYhBb",
+		Domain: "http://localhost:8084",
+	})
 	tokenStore, _ := mysql.NewTokenStore(db)
 	manager.MapClientStorage(clientStore)
 	manager.MapTokenStorage(tokenStore)
