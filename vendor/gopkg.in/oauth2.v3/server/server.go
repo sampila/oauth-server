@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"log"
 
 	"gopkg.in/oauth2.v3"
 	"gopkg.in/oauth2.v3/errors"
@@ -83,6 +82,7 @@ func (s *Server) token(w http.ResponseWriter, data map[string]interface{}, heade
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS, DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
@@ -145,7 +145,6 @@ func (s *Server) CheckResponseType(rt oauth2.ResponseType) bool {
 func (s *Server) ValidationAuthorizeRequest(r *http.Request) (*AuthorizeRequest, error) {
 	redirectURI := r.FormValue("redirect_uri")
 	clientID := r.FormValue("client_id")
-
 	if !(r.Method == "GET" || r.Method == "POST") ||
 		clientID == "" {
 		return nil, errors.ErrInvalidRequest
@@ -269,12 +268,6 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 	return s.redirect(w, req, s.GetAuthorizeData(req.ResponseType, ti))
 }
 
-type LoginReq struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	GrantType string `json:"grant_type"`
-	Scope string `json:"scope"`
-}
 // ValidationTokenRequest the token request validation
 func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oauth2.TokenGenerateRequest, error) {
 	if v := r.Method; !(v == "POST" ||
@@ -282,20 +275,12 @@ func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oau
 		return "", nil, errors.ErrInvalidRequest
 	}
 
-	var loginReq LoginReq
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&loginReq)
-	if err != nil {
-		return "", nil, errors.ErrUnsupportedGrantType
-	}
-
-	gt := oauth2.GrantType(loginReq.GrantType)
+	gt := oauth2.GrantType(r.FormValue("grant_type"))
 	if gt.String() == "" {
 		return "", nil, errors.ErrUnsupportedGrantType
 	}
 
 	clientID, clientSecret, err := s.ClientInfoHandler(r)
-
 	if err != nil {
 		return "", nil, err
 	}
@@ -315,8 +300,8 @@ func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oau
 			return "", nil, errors.ErrInvalidRequest
 		}
 	case oauth2.PasswordCredentials:
-		tgr.Scope = loginReq.Scope
-		username, password := loginReq.Username, loginReq.Password
+		tgr.Scope = r.FormValue("scope")
+		username, password := r.FormValue("username"), r.FormValue("password")
 		if username == "" || password == "" {
 			return "", nil, errors.ErrInvalidRequest
 		}
@@ -451,16 +436,6 @@ func (s *Server) GetTokenData(ti oauth2.TokenInfo) map[string]interface{} {
 
 // HandleTokenRequest token request handling
 func (s *Server) HandleTokenRequest(w http.ResponseWriter, r *http.Request) error {
-
-	log.Println(r)
-	if r.Method == "OPTIONS" {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
-		w.WriteHeader(http.StatusOK)
-		return nil
-	}
-
 	gt, tgr, err := s.ValidationTokenRequest(r)
 	if err != nil {
 		return s.tokenError(w, err)
